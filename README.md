@@ -11,7 +11,21 @@ This is useful if you work on a project that squashes branches into master. Afte
 To run as a shellscript, simply copy the following command (setting up an alias is recommended). There's no need to clone the repo.
 
 ```bash
-git checkout -q master && git for-each-ref refs/heads/ "--format=%(refname:short)" | while read branch; do mergeBase=$(git merge-base master $branch) && [[ $(git cherry master $(git commit-tree $(git rev-parse $branch\^{tree}) -p $mergeBase -m _)) == "-"* ]] && git branch -D $branch; done
+git for-each-ref --format '%(objectname) %(tree) %(refname)' refs/heads/ |
+while read head tree branch
+do
+    mergeBase=$(git merge-base master "$head")
+    squash=$(git commit-tree -F - -p "$mergeBase" "$tree" </dev/null)
+    case $(git cherry master "$squash") in
+    -*)
+        echo "- $branch"
+        git update-ref -d "$branch" "$head"
+        ;;
+    *)
+        echo "+ $branch"
+        ;;
+    esac
+done
 ```
 
 ### Node.js
